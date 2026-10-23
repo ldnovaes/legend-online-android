@@ -1,6 +1,5 @@
 <resources>
     <string name="app_name">Legend Online</string>
-    <string name="logo_description">Ruffle Logo</string>
     <string name="or">or</string>
     <string name="open_url">Open URL</string>
     <string name="select_a_swf">Select a SWF</string>
