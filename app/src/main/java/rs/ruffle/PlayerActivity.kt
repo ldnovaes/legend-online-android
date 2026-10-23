@@ -149,6 +149,17 @@ class PlayerActivity : GameActivity() {
         return storageDirPath
     }
 
+    @Suppress("unused")
+    // Used by Rust
+    private fun getAndroidCacheDir(): String {
+        // O cache HTTP ficava em filesDir, que entra no backup automático.
+        val oldCacheDir = File(filesDir, "ruffle/http_cache")
+        if (oldCacheDir.exists()) {
+            oldCacheDir.deleteRecursively()
+        }
+        return "${cacheDir.absolutePath}/http_cache"
+    }
+
     // O jogo ocupa a tela inteira; textos usam o teclado nativo do Android
     // (aberto pelo Ruffle quando um campo editável ganha foco, ver src/ime.rs).
     override fun onCreateSurfaceView() {

@@ -171,18 +171,19 @@ async fn run(app: AndroidApp) {
     // This is a global reference, so it can only be borrowed, not wrapped as a local one.
     let activity_raw = app.activity_as_ptr() as jobject;
 
-    let (trace_output, android_storage_dir) = vm
+    let (trace_output, android_storage_dir, http_cache_dir) = vm
         .attach_current_thread(|env| -> jni::errors::Result<_> {
             let activity = unsafe { env.as_cast_raw::<JObject>(&activity_raw) }?;
             let trace_output = JavaInterface::get_trace_output(env, &activity);
             let android_storage_dir = JavaInterface::get_android_data_storage_dir(env, &activity);
+            let http_cache_dir = JavaInterface::get_android_cache_dir(env, &activity);
             let _ = unsafe {
                 env.set_rust_field(&*activity, jni_str!("eventLoopHandle"), sender.clone())
             };
             // Lets reqwest verify server certificates using Android's trust store.
             let context = env.new_local_ref(&*activity)?;
             rustls_platform_verifier::android::init_with_env(env, context)?;
-            Ok((trace_output, android_storage_dir))
+            Ok((trace_output, android_storage_dir, http_cache_dir))
         })
         .expect("JNI calls on the main thread must succeed");
 
@@ -365,11 +366,7 @@ async fn run(app: AndroidApp) {
                                 );
                                 // Recursos do jogo (UI, mapas, sprites) ficam em disco entre
                                 // execuções, como no cache do navegador.
-                                let http_cache_dir = android_storage_dir
-                                    .parent()
-                                    .unwrap_or(&android_storage_dir)
-                                    .join("http_cache");
-                                match HttpCache::new(http_cache_dir, HTTP_CACHE_MAX_BYTES) {
+                                match HttpCache::new(&http_cache_dir, HTTP_CACHE_MAX_BYTES) {
                                     Ok(cache) => navigator.set_http_cache(cache),
                                     Err(e) => log::warn!("Cache HTTP indisponível: {e}"),
                                 }
