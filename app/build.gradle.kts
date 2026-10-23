@@ -26,8 +26,8 @@ android {
         applicationId = "com.eldialabs.legendonline"
         minSdk = 26
         targetSdk = 35
-        versionCode = 261023
-        versionName = "0.1.0-alpha.1"
+        versionCode = 2610232
+        versionName = "0.1.0-alpha.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
