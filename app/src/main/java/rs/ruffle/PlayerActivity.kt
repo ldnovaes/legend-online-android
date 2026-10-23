@@ -1,8 +1,6 @@
 package rs.ruffle
 
-import android.annotation.SuppressLint
 import android.content.Intent
-import android.content.res.Configuration
 import android.net.Uri
 import android.os.Build
 import android.os.Build.VERSION_CODES
@@ -10,14 +8,10 @@ import android.os.Bundle
 import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
-import android.view.MotionEvent
 import android.view.View
-import android.view.ViewGroup
 import android.view.Window
 import android.view.WindowManager
-import android.widget.Button
 import android.widget.PopupMenu
-import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -101,9 +95,6 @@ class PlayerActivity : GameActivity() {
     private val surfaceHeight: Int
         get() = mSurfaceView.height
 
-    private external fun keydown(keyTag: String)
-    private external fun keyup(keyTag: String)
-    private external fun requestContextMenu()
     private external fun runContextMenuCallback(index: Int)
     private external fun clearContextMenu()
 
@@ -111,7 +102,7 @@ class PlayerActivity : GameActivity() {
     // Used by Rust
     private fun showContextMenu(items: Array<String>) {
         runOnUiThread {
-            val popup = PopupMenu(this, findViewById(R.id.button_cm))
+            val popup = PopupMenu(this, mSurfaceView)
             val menu = popup.menu
             if (Build.VERSION.SDK_INT >= VERSION_CODES.P) {
                 menu.setGroupDividerEnabled(true)
@@ -158,60 +149,29 @@ class PlayerActivity : GameActivity() {
         return storageDirPath
     }
 
+    // O jogo ocupa a tela inteira; textos usam o teclado nativo do Android
+    // (aberto pelo Ruffle quando um campo editável ganha foco, ver src/ime.rs).
     override fun onCreateSurfaceView() {
-        val inflater = layoutInflater
-
-        @SuppressLint("InflateParams")
-        val layout = inflater.inflate(R.layout.keyboard, null) as ConstraintLayout
-
-        contentViewId = View.generateViewId()
-        layout.id = contentViewId
-        setContentView(layout)
         mSurfaceView = InputEnabledSurfaceView(this)
-
         mSurfaceView.contentDescription = "Ruffle Player"
-
-        val placeholder = findViewById<View>(R.id.placeholder)
-        val pars = placeholder.layoutParams as ConstraintLayout.LayoutParams
-        val parent = placeholder.parent as ViewGroup
-        val index = parent.indexOfChild(placeholder)
-        parent.removeView(placeholder)
-        parent.addView(mSurfaceView, index)
-        mSurfaceView.setLayoutParams(pars)
-        val keys = gatherAllDescendantsOfType<Button>(
-            layout.getViewById(R.id.keyboard),
-            Button::class.java
-        )
-        for (b in keys) {
-            b.setOnTouchListener { view: View, motionEvent: MotionEvent ->
-                val tag = view.tag as String
-                if (motionEvent.action == MotionEvent.ACTION_DOWN) keydown(tag)
-                if (motionEvent.action == MotionEvent.ACTION_UP) keyup(tag)
-                view.performClick()
-                false
-            }
-        }
-        layout.findViewById<View>(R.id.button_kb).setOnClickListener {
-            val keyboard = layout.getViewById(R.id.keyboard)
-            if (keyboard.visibility == View.VISIBLE) {
-                keyboard.visibility = View.GONE
-            } else {
-                keyboard.visibility = View.VISIBLE
-            }
-        }
-        layout.findViewById<View>(R.id.button_cm)
-            .setOnClickListener { requestContextMenu() }
-        layout.requestLayout()
-        layout.requestFocus()
+        contentViewId = View.generateViewId()
+        mSurfaceView.id = contentViewId
+        setContentView(mSurfaceView)
+        // Sem foco em modo de toque, o teclado do sistema não se conecta à view.
+        mSurfaceView.isFocusable = true
+        mSurfaceView.isFocusableInTouchMode = true
+        mSurfaceView.requestFocus()
         mSurfaceView.holder.addCallback(this)
         ViewCompat.setOnApplyWindowInsetsListener(mSurfaceView, this)
     }
 
-    override fun onConfigurationChanged(newConfig: Configuration) {
-        super.onConfigurationChanged(newConfig)
-        val keyboard = findViewById<View>(R.id.keyboard)
-        val isLandscape = newConfig.orientation == Configuration.ORIENTATION_LANDSCAPE
-        keyboard.visibility = if (isLandscape) View.GONE else View.VISIBLE
+    // Com o teclado do sistema aberto, o jogo sobe pela altura dele: o chat e os
+    // demais campos na parte de baixo ficam visíveis acima do teclado. O Android
+    // ajusta as coordenadas dos toques pelo deslocamento.
+    override fun onApplyWindowInsets(v: View, insets: WindowInsetsCompat): WindowInsetsCompat {
+        val keyboard = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom
+        mSurfaceView.translationY = -keyboard.toFloat()
+        return super.onApplyWindowInsets(v, insets)
     }
 
     private fun hideSystemUI() {
@@ -285,17 +245,6 @@ class PlayerActivity : GameActivity() {
         @JvmStatic
         private external fun nativeInit(crashCallback: CrashCallback)
 
-        private fun <T> gatherAllDescendantsOfType(v: View, t: Class<*>): List<T> {
-            val result: MutableList<T> = ArrayList()
-            @Suppress("UNCHECKED_CAST")
-            if (t.isInstance(v)) result.add(v as T)
-            if (v is ViewGroup) {
-                for (i in 0 until v.childCount) {
-                    result.addAll(gatherAllDescendantsOfType(v.getChildAt(i), t))
-                }
-            }
-            return result
-        }
     }
 
     fun interface CrashCallback {

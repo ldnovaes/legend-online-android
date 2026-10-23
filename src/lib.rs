@@ -1,5 +1,6 @@
 mod audio;
 mod custom_event;
+mod ime;
 mod java;
 mod keycodes;
 mod navigator;
@@ -154,6 +155,7 @@ impl<E: std::error::Error + 'static> FutureSpawner<E> for AndroidExecutor {
 #[tokio::main]
 async fn run(app: AndroidApp) {
     let mut last_frame_time = Instant::now();
+    let mut ime_text = ime::ImeText::default();
     let mut next_frame_time = Some(Instant::now());
     let mut quit = false;
     let (sender, receiver) = mpsc::channel::<RuffleEvent>();
@@ -379,6 +381,7 @@ async fn run(app: AndroidApp) {
                                             .with_audio(AAudioAudioBackend::new().unwrap())
                                             .with_storage(Box::new(DiskStorageBackend::new(android_storage_dir.clone())))
                                             .with_navigator(navigator)
+                                            .with_ui(ime::AndroidUiBackend::new(app.clone()))
                                             .with_log(FileLogBackend::new(trace_output.as_deref()))
                                             .with_video(
                                                 ruffle_video_software::backend::SoftwareVideoBackend::new(),
@@ -496,6 +499,27 @@ async fn run(app: AndroidApp) {
                                             needs_redraw = true;
                                         }
 
+                                        InputStatus::Handled
+                                    }
+                                    InputEvent::TextEvent(state) => {
+                                        let events = ime_text.update(&app, state.clone());
+                                        if let Some(player) = playerbox.as_ref() {
+                                            let mut player = player.player.lock().unwrap();
+                                            for event in events {
+                                                player.handle_event(event);
+                                            }
+                                            needs_redraw = true;
+                                        }
+                                        InputStatus::Handled
+                                    }
+                                    InputEvent::TextAction(_) => {
+                                        if let Some(player) = playerbox.as_ref() {
+                                            let mut player = player.player.lock().unwrap();
+                                            for event in ime_text.action() {
+                                                player.handle_event(event);
+                                            }
+                                            needs_redraw = true;
+                                        }
                                         InputStatus::Handled
                                     }
                                     _ => InputStatus::Unhandled,
