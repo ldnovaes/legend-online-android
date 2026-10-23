@@ -21,6 +21,7 @@ pub struct JavaInterface {
     get_trace_output: JMethodID,
     get_loc_in_window: JMethodID,
     get_android_data_storage_dir: JMethodID,
+    get_android_cache_dir: JMethodID,
 }
 
 static JAVA_INTERFACE: OnceLock<JavaInterface> = OnceLock::new();
@@ -178,6 +179,24 @@ impl JavaInterface {
         PathBuf::from(path)
     }
 
+    pub fn get_android_cache_dir(env: &mut Env, this: &JObject) -> PathBuf {
+        let result = unsafe {
+            env.call_method_unchecked(
+                this,
+                Self::get().get_android_cache_dir,
+                ReturnType::Object,
+                &[],
+            )
+        };
+        let object = result
+            .expect("getAndroidCacheDir() must never throw")
+            .l()
+            .unwrap();
+        let string_object = unsafe { env.as_cast_unchecked::<JString>(&object) };
+        let path = string_object.try_to_string(env).unwrap();
+        PathBuf::from(path)
+    }
+
     pub fn get() -> &'static JavaInterface {
         JAVA_INTERFACE
             .get()
@@ -233,6 +252,13 @@ impl JavaInterface {
                     jni_sig!("()Ljava/lang/String;"),
                 )
                 .expect("getAndroidDataStorageDir must exist"),
+            get_android_cache_dir: env
+                .get_method_id(
+                    class,
+                    jni_str!("getAndroidCacheDir"),
+                    jni_sig!("()Ljava/lang/String;"),
+                )
+                .expect("getAndroidCacheDir must exist"),
         });
     }
 }
