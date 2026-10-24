@@ -1,0 +1,7 @@
+[submodule "third_party/ruffle"]
+	path = third_party/ruffle
+	url = https://github.com/ldnovaes/legend-online-ruffle.git
+	branch = legend-online
+[submodule "vendor/rustls-platform-verifier"]
+	path = vendor/rustls-platform-verifier
+	url = https://github.com/rustls/rustls-platform-verifier

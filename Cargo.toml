@@ -1,0 +1,77 @@
+[package]
+# Underscore because the cargo-ndk gradle plugin doesn't transform a hyphen to it.
+name = "ruffle_android"
+version = "0.1.0"
+authors = [
+    "Ruffle contributors <ruffle@ruffle.rs>",
+    "TÖRÖK Attila <torokati44@gmail.com>",
+    "Nathan Adams <dinnerbone@dinnerbone.com>",
+]
+edition = "2018"
+resolver = "2"
+license = "MIT OR Apache-2.0"
+
+[lib]
+crate-type = ["cdylib"]
+
+[profile.release]
+strip = "symbols"
+
+# O plugin do Gradle compila o perfil dev no APK de debug. Sem otimização o
+# Ruffle fica lento demais para o jogo, então o perfil dev também é otimizado.
+[profile.dev]
+opt-level = 3
+debug = false
+debug-assertions = false
+overflow-checks = false
+strip = "symbols"
+
+[dependencies]
+
+android-activity = { version = "0.6.1", features = ["game-activity"] }
+android_logger = "0.15.1"
+
+jni = "0.22.4"
+# reqwest (via ruffle_frontend_utils' `rustls-tls`) verifies certificates with this,
+# which on Android needs to be initialized, and its Kotlin component included.
+# Keep it semver-compatible with the version reqwest uses, so they share a copy.
+rustls-platform-verifier = "0.7.1"
+# ruffle_frontend_utils' `rustls-tls` doesn't include a crypto provider for reqwest,
+# so we have to install one. Using `ring`, because `aws-lc-rs` needs CMake to build.
+rustls = { version = "0.23.45", default-features = false, features = ["ring", "std"] }
+ndk = { version = "0.9.0", features = ["audio"] }
+
+# Tem que acompanhar o Ruffle (third_party/ruffle).
+wgpu = "30.0.1"
+
+ruffle_common = { path = "third_party/ruffle/core/common" }
+ruffle_core = { path = "third_party/ruffle/core", features = [
+    "audio",
+    "symphonia",
+    "mp3",
+    "nellymoser",
+    "lzma",
+    "default_compatibility_rules",
+    "default_font",
+] }
+ruffle_render_wgpu = { path = "third_party/ruffle/render/wgpu" }
+ruffle_video_software = { path = "third_party/ruffle/video/software" }
+ruffle_frontend_utils = { path = "third_party/ruffle/frontend-utils", default-features = false, features = ["fs", "navigator", "rustls-tls"] }
+
+log = "0.4.32"
+
+# Alocador global: ver o comentário em src/lib.rs.
+mimalloc = { version = "0.1.52", default-features = false }
+
+# Redirect tracing to log
+tracing = {version = "0.1.44", features = ["log", "log-always"]}
+backtrace = "0.3.76"
+async-task = "4.7.1"
+
+url = "2.5.2"
+webbrowser = "1.2.4"
+
+tokio = { version = "1.52.3", features = ["rt-multi-thread", "macros"]}
+
+[features]
+jpegxr = ["ruffle_core/jpegxr"]
